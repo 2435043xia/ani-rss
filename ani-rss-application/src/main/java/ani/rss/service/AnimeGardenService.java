@@ -15,7 +15,6 @@ import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.util.StrUtil;
 import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
@@ -28,7 +27,7 @@ public class AnimeGardenService {
     private static final String HOST = "https://api.animes.garden";
 
     @Resource
-    private CacheService cacheService;
+    private BgmScoreService bgmScoreService;
 
     public List<AnimeGarden.Week> list(String bgmUrl) {
         List<AnimeGarden.Week> weekList = new ArrayList<>();
@@ -53,9 +52,6 @@ public class AnimeGardenService {
             return weekList;
         }
 
-        JsonObject bgmScore = cacheService.getBgmScore();
-        JsonObject bgmCover = cacheService.getBgmCover();
-
         List<String> bgmIdList = AniUtil.ANI_LIST
                 .stream()
                 .map(Ani::getBgmUrl)
@@ -72,24 +68,26 @@ public class AnimeGardenService {
                     return GsonStatic.fromJsonList(subjects, AnimeGarden.Subject.class);
                 });
 
+        List<String> subjectIds = subjectList.stream()
+                .map(AnimeGarden.Subject::getId)
+                .filter(StrUtil::isNotBlank)
+                .distinct()
+                .toList();
+        Map<String, BgmScoreService.SubjectScore> scoreMap = bgmScoreService.scores(subjectIds);
+
         subjectList = subjectList.stream()
                 .peek(subject -> {
                     String id = subject.getId();
-
-                    Double score = Optional.ofNullable(bgmScore.get(id))
-                            .map(JsonElement::getAsDouble)
-                            .orElse(0.0);
-
-                    String cover = Optional.ofNullable(bgmCover.get(id))
-                            .map(it -> GsonStatic.fromJson(it, BgmInfo.Images.class))
-                            .map(BgmInfo.Images::getSmall)
-                            .orElse("");
+                    BgmScoreService.SubjectScore subjectScore = scoreMap.get(id);
+                    double score = subjectScore == null ? 0D : subjectScore.getScore();
+                    if (subjectScore != null && StrUtil.isNotBlank(subjectScore.getCover())) {
+                        subject.setCover(subjectScore.getCover());
+                    }
 
                     boolean exists = bgmIdList.contains(subject.getId());
 
                     subject
                             .setScore(score)
-                            .setCover(cover)
                             .setExists(exists);
                 })
                 .sorted(Comparator.comparingDouble(AnimeGarden.Subject::getScore).reversed())

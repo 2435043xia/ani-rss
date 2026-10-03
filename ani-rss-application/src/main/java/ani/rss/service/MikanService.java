@@ -24,8 +24,6 @@ import org.springframework.stereotype.Service;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -34,7 +32,7 @@ import java.util.stream.Collectors;
 public class MikanService {
 
     @Resource
-    private CacheService cacheService;
+    private BgmScoreService bgmScoreService;
 
     public static String getMikanHost() {
         Config config = ConfigUtil.CONFIG;
@@ -51,23 +49,18 @@ public class MikanService {
      * @return Mikan
      */
     public Mikan list(String text, Mikan.Season season) {
-        AtomicReference<Map<String, MikanBgm>> mikanBgmAtomicReference = new AtomicReference<>(new HashMap<>());
-        AtomicReference<Mikan> mikanAtomicReference = new AtomicReference<>();
+        Mikan mikan = search(text, season);
+        if (mikan.getWeeks() == null) {
+            return mikan;
+        }
 
-        // 并行获取 mikan 番剧列表及其评分
-        CompletableFuture.allOf(
-                CompletableFuture.runAsync(() -> {
-                    Map<String, MikanBgm> mikanBgm = cacheService.getMikanBgm();
-                    mikanBgmAtomicReference.set(mikanBgm);
-                }),
-                CompletableFuture.runAsync(() -> {
-                    Mikan mikan = search(text, season);
-                    mikanAtomicReference.set(mikan);
-                })
-        ).join();
-
-        Map<String, MikanBgm> mikanBgmMap = mikanBgmAtomicReference.get();
-        Mikan mikan = mikanAtomicReference.get();
+        List<MikanInfo> items = new ArrayList<>();
+        for (Mikan.Week week : mikan.getWeeks()) {
+            if (week.getItems() != null) {
+                items.addAll(week.getItems());
+            }
+        }
+        bgmScoreService.applyToMikan(items);
 
         List<String> bgmIdList = AniUtil.ANI_LIST
                 .stream()
@@ -77,30 +70,21 @@ public class MikanService {
                 .distinct()
                 .toList();
 
-        List<Mikan.Week> weeks = mikan.getWeeks();
-        for (Mikan.Week week : weeks) {
+        for (Mikan.Week week : mikan.getWeeks()) {
             List<MikanInfo> mikanInfos = week.getItems();
+            if (mikanInfos == null) {
+                continue;
+            }
             for (MikanInfo mikanInfo : mikanInfos) {
-                String url = mikanInfo.getUrl();
-                String mikanId = ReUtil.get("\\d+(/)?$", url, 0);
-                if (StrUtil.isBlank(mikanId)) {
-                    continue;
-                }
-                if (!mikanBgmMap.containsKey(mikanId)) {
-                    continue;
-                }
-
-                MikanBgm mikanBgm = mikanBgmMap.get(mikanId);
-                Double score = mikanBgm.getScore();
-                String bgmId = mikanBgm.getBgmId();
-                mikanInfo.setScore(score)
-                        .setBgmId(bgmId);
-
-                if (bgmIdList.contains(bgmId)) {
+                String bgmId = mikanInfo.getBgmId();
+                if (StrUtil.isNotBlank(bgmId) && bgmIdList.contains(bgmId)) {
                     mikanInfo.setExists(true);
                 }
             }
-            ListUtil.sort(mikanInfos, Comparator.comparingDouble(MikanInfo::getScore).reversed());
+            ListUtil.sort(mikanInfos, Comparator.comparingDouble((MikanInfo info) -> {
+                Double value = info.getScore();
+                return value == null ? 0D : value;
+            }).reversed());
         }
 
         return mikan;
