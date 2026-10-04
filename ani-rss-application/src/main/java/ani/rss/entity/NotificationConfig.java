@@ -196,6 +196,9 @@ public class NotificationConfig implements Serializable {
     @Schema(description = "Emby 延迟扫描")
     private Long embyDelayed;
 
+    @Schema(description = "Emby 路径替换规则")
+    private List<PathReplaceRule> embyPathReplaceRules;
+
     @Schema(description = "Shell 命令")
     private String shell;
 

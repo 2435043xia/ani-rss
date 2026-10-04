@@ -32,6 +32,7 @@
               <ProxyView v-else-if="tab.name === 'proxy'" v-model:config="config"/>
               <Security v-else-if="tab.name === 'security'" :config="config"/>
               <NotificationView v-else-if="tab.name === 'notification'" v-model:config="config"/>
+              <LibraryView v-else-if="tab.name === 'library'" v-model:config="config"/>
               <AfdianView v-else-if="tab.name === 'afdian'" :config="config"/>
               <AboutView v-else-if="tab.name === 'about'" :config="config"/>
             </div>
@@ -48,6 +49,7 @@ import {ElMessage} from "element-plus";
 import {md5} from "js-md5";
 import ExcludeView from "@/view/config/ExcludeView.vue";
 import NotificationView from "@/view/config/NotificationView.vue";
+import LibraryView from "@/view/config/LibraryView.vue";
 import ProxyView from "@/view/config/ProxyView.vue";
 import DownloadView from "@/view/config/DownloadView.vue";
 import BasicView from "@/view/config/BasicView.vue";
@@ -71,6 +73,7 @@ const tabs = [
   {name: 'proxy', label: '代理', description: '网络代理与连接配置'},
   {name: 'security', label: '安全', description: '账号与访问安全'},
   {name: 'notification', label: '通知', description: '消息渠道与事件通知'},
+  {name: 'library', label: '媒体库管理', description: 'Emby 地址、密钥与要扫描的媒体库'},
   {name: 'afdian', label: '捐赠', description: '支持项目持续维护'},
   {name: 'about', label: '关于', description: '版本信息与项目链接'}
 ]
