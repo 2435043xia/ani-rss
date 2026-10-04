@@ -4,6 +4,7 @@
   <MikanView ref="mikanRef" @callback="mikanCallback"/>
   <AnimeGardenView ref="animeGardenRef" @callback="mikanCallback"/>
   <TmdbGroupView ref="tmdbGroupRef" :ani="props.ani"/>
+  <TmdbAlignPreview ref="tmdbAlignRef" :ani="props.ani"/>
   <div style="padding: 0 12px;">
     <el-tabs v-model="activeName" class="tabs-center">
       <el-tab-pane label="基本" name="base" :lazy="true">
@@ -25,6 +26,7 @@
                              :disabled="props.ani.title === ani.themoviedbName || !ani.themoviedbName.length" bg text>
                     使用TMDB
                   </el-button>
+                  <el-button bg text @click="tmdbAlignRef?.show(props.ani)">TMDB 对齐</el-button>
                 </div>
               </div>
             </el-form-item>
@@ -307,6 +309,7 @@ import {ElMessage, ElMessageBox, ElText} from "element-plus";
 import StandbyRssView from "./StandbyRssView.vue";
 import MikanView from "./MikanView.vue";
 import TmdbGroupView from "./TmdbGroupView.vue";
+import TmdbAlignPreview from "./TmdbAlignPreview.vue";
 import CustomTagsView from "@/view/config/CustomTagsView.vue";
 import {Refresh, RefreshRight} from "@element-plus/icons-vue";
 import * as http from "@/js/http.js";
@@ -321,6 +324,7 @@ const aniBTRef = ref()
 const mikanRef = ref()
 const animeGardenRef = ref()
 const tmdbGroupRef = ref()
+const tmdbAlignRef = ref()
 const standbyRssRef = ref()
 
 let previewRef = ref()

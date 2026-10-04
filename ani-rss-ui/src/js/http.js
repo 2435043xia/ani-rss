@@ -138,6 +138,13 @@ export let clearLogs = () => api.post('api/clearLogs')
 export let getThemoviedbName = (ani) => api.post('api/getThemoviedbName', ani)
 
 /**
+ * 预览 TMDB 对齐
+ * @param ani 订阅
+ * @returns {Promise<unknown>}
+ */
+export let previewTmdbAlign = (ani) => api.post('api/previewTmdbAlign', ani)
+
+/**
  * 获取TMDB剧集组
  * @param ani 订阅
  * @returns {Promise<unknown>}
