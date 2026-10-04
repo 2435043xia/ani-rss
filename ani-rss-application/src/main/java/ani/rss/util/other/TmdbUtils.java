@@ -292,12 +292,38 @@ public class TmdbUtils {
         return TMDB_UTIL.getTmdb(tmdb, tmdbTypeEnum);
     }
 
+    public static final class AlignEpisodes {
+        private final List<TmdbEpisode> episodes;
+        private final boolean incomplete;
+
+        private AlignEpisodes(List<TmdbEpisode> episodes, boolean incomplete) {
+            this.episodes = episodes;
+            this.incomplete = incomplete;
+        }
+
+        public List<TmdbEpisode> episodes() {
+            return episodes;
+        }
+
+        public boolean incomplete() {
+            return incomplete;
+        }
+    }
+
+    public static AlignEpisodes seasonList(boolean anySeasonFailed, List<TmdbEpisode> collected) {
+        if (anySeasonFailed) {
+            return new AlignEpisodes(List.of(), true);
+        }
+        return new AlignEpisodes(collected == null ? List.of() : collected, false);
+    }
+
     /**
      * 对齐用的全部剧集。剧集组保留原始 season_number，不用会改写季号的季查询。
+     * 任一季请求失败时不返回已读到的其它季。
      */
-    public static List<TmdbEpisode> listEpisodesForAlign(Tmdb tmdb) {
+    public static AlignEpisodes listEpisodesForAlign(Tmdb tmdb) {
         if (tmdb == null || StrUtil.isBlank(tmdb.getId())) {
-            return List.of();
+            return seasonList(false, List.of());
         }
         CustomTmdbConfig config = new CustomTmdbConfig();
         String api = StrUtil.removeSuffix(StrUtil.blankToDefault(config.getTmdbApi(), "https://api.themoviedb.org"), "/");
@@ -305,12 +331,12 @@ public class TmdbUtils {
         String language = config.getTmdbLanguage();
         try {
             if (StrUtil.isNotBlank(tmdb.getTmdbGroupId())) {
-                return episodesFromGroup(api, key, language, tmdb.getTmdbGroupId());
+                return seasonList(false, episodesFromGroup(api, key, language, tmdb.getTmdbGroupId()));
             }
             return episodesFromSeasons(api, key, language, tmdb);
         } catch (Exception e) {
             log.error("TMDB 对齐读取剧集失败");
-            return List.of();
+            return seasonList(false, List.of());
         }
     }
 
@@ -340,12 +366,13 @@ public class TmdbUtils {
         return episodes;
     }
 
-    private static List<TmdbEpisode> episodesFromSeasons(String api, String key, String language, Tmdb tmdb) {
+    private static AlignEpisodes episodesFromSeasons(String api, String key, String language, Tmdb tmdb) {
         JsonObject body = getJson(api + "/3/tv/" + tmdb.getId(), key, language);
         if (body == null || !body.has("seasons") || !body.get("seasons").isJsonArray()) {
-            return List.of();
+            return seasonList(false, List.of());
         }
         List<TmdbEpisode> episodes = new ArrayList<>();
+        boolean failed = false;
         for (JsonElement element : body.getAsJsonArray("seasons")) {
             if (element == null || !element.isJsonObject() || !element.getAsJsonObject().has("season_number")) {
                 continue;
@@ -360,10 +387,13 @@ public class TmdbUtils {
                     episodes.addAll(season.get().getEpisodes());
                 }
             } catch (Exception ignored) {
-                // 某一季失败时继续读其它季，不把密钥写进日志
+                failed = true;
             }
         }
-        return episodes;
+        if (failed) {
+            log.error("TMDB 对齐读取剧集失败");
+        }
+        return seasonList(failed, episodes);
     }
 
     private static JsonObject getJson(String url, String key, String language) {

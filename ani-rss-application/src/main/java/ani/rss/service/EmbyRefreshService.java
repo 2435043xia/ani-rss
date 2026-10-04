@@ -21,7 +21,23 @@ import java.util.List;
 @Slf4j
 @Service
 public class EmbyRefreshService {
-    private String listSeriesErrorMessage = "";
+    public static final class SeriesListing {
+        private final List<EmbyPathChoice> hits;
+        private final String error;
+
+        public SeriesListing(List<EmbyPathChoice> hits, String error) {
+            this.hits = hits == null ? List.of() : List.copyOf(hits);
+            this.error = error == null ? "" : error;
+        }
+
+        public List<EmbyPathChoice> hits() {
+            return hits;
+        }
+
+        public String error() {
+            return error;
+        }
+    }
 
     /**
      * 扫描媒体库
@@ -126,14 +142,13 @@ public class EmbyRefreshService {
         return hits;
     }
 
-    public List<EmbyPathChoice> listSeries(NotificationConfig config) {
-        listSeriesErrorMessage = "";
+    public SeriesListing listSeries(NotificationConfig config) {
         if (config == null || StrUtil.isBlank(config.getEmbyHost()) || StrUtil.isBlank(config.getEmbyApiKey())) {
-            return List.of();
+            return new SeriesListing(List.of(), "");
         }
         List<String> viewIds = config.getEmbyRefreshViewIds();
         if (viewIds == null || viewIds.isEmpty()) {
-            return List.of();
+            return new SeriesListing(List.of(), "");
         }
         List<EmbyPathChoice> hits = new ArrayList<>();
         StringBuilder errors = new StringBuilder();
@@ -164,15 +179,7 @@ public class EmbyRefreshService {
                 errors.append(config.getEmbyHost()).append(" ").append(detail);
             }
         }
-        listSeriesErrorMessage = errors.toString();
-        return hits;
-    }
-
-    public String listSeriesError(NotificationConfig config) {
-        if (listSeriesErrorMessage == null) {
-            return "";
-        }
-        return listSeriesErrorMessage;
+        return new SeriesListing(hits, errors.toString());
     }
 
     private static String text(JsonObject object, String key) {

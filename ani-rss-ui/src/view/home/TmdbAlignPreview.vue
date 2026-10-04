@@ -1,6 +1,14 @@
 <template>
   <el-dialog v-model="dialogVisible" align-center center title="TMDB 对齐" width="720">
     <div v-if="preview" class="align-body">
+      <div v-if="preview.tmdb" class="align-row">
+        <div class="align-label">TMDB</div>
+        <div>
+          <div>{{ preview.themoviedbName }}</div>
+          <div>id {{ preview.tmdb.id }}</div>
+        </div>
+      </div>
+
       <div class="align-row">
         <div class="align-label">主 RSS</div>
         <div>

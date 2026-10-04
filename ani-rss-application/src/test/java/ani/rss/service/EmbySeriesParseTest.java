@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 class EmbySeriesParseTest {
 
@@ -28,5 +29,23 @@ class EmbySeriesParseTest {
         assertEquals("http://emby", hits.get(0).getEmbyHost());
         assertEquals("/volume1/anime/葬送的芙莉莲/Season 1", hits.get(0).getOriginalPath());
         assertEquals("/mnt/smb/downloads/葬送的芙莉莲/Season 1", hits.get(0).getReplacedPath());
+    }
+
+    @Test
+    void eachListingKeepsItsOwnError() {
+        EmbyPathChoice hit = new EmbyPathChoice().setSeriesName("Show");
+        EmbyRefreshService.SeriesListing first = new EmbyRefreshService.SeriesListing(List.of(hit), "http://a 500");
+        EmbyRefreshService.SeriesListing second = new EmbyRefreshService.SeriesListing(List.of(), "http://b 404");
+        assertEquals("http://a 500", first.error());
+        assertEquals("Show", first.hits().get(0).getSeriesName());
+        assertEquals("http://b 404", second.error());
+        assertEquals("http://a 500", first.error());
+        boolean stored = false;
+        for (java.lang.reflect.Field field : EmbyRefreshService.class.getDeclaredFields()) {
+            if (field.getName().contains("listSeriesError")) {
+                stored = true;
+            }
+        }
+        assertFalse(stored);
     }
 }

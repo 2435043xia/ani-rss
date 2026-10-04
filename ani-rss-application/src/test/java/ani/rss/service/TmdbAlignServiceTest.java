@@ -7,6 +7,7 @@ import ani.rss.entity.vo.EmbyPathChoice;
 import ani.rss.entity.vo.TmdbAlignChoice;
 import ani.rss.entity.vo.TmdbAlignPreview;
 import ani.rss.util.other.EpisodeAlignUtil;
+import ani.rss.util.other.TmdbUtils;
 import org.junit.jupiter.api.Test;
 import wushuo.tmdb.api.entity.Tmdb;
 import wushuo.tmdb.api.entity.TmdbEpisode;
@@ -17,6 +18,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TmdbAlignServiceTest {
@@ -147,5 +149,57 @@ class TmdbAlignServiceTest {
         assertEquals("葬送的芙莉莲", ani.getThemoviedbName());
         assertEquals("99", ani.getTmdb().getId());
         assertEquals("keep", ani.getTmdb().getTmdbGroupId());
+    }
+
+    @Test
+    void rssNumbersSubtractsTheTitleEpisode() {
+        // 标题集号 25，订阅偏移 -24 时，getItems 会把条目集号存成 1。
+        // 用 1 去减会得到偏移 24，重命名后的集号不再是 TMDB 的 25。
+        assertEquals(24, EpisodeAlignUtil.offset(25, 1));
+        assertEquals(0, EpisodeAlignUtil.offset(25, 25));
+
+        Ani ani = new Ani()
+                .setTitle("葬送的芙莉莲")
+                .setUrl("https://rss.example/show")
+                .setSubgroup("字幕组")
+                .setOffset(-24)
+                .setMatch(List.of("1080"))
+                .setExclude(List.of("720"))
+                .setGlobalExclude(true);
+        Ani probe = TmdbAlignService.rssNumbers(ani);
+        assertNotSame(ani, probe);
+        assertEquals(0, probe.getOffset());
+        assertEquals(-24, ani.getOffset());
+        assertEquals("葬送的芙莉莲", probe.getTitle());
+        assertEquals("https://rss.example/show", probe.getUrl());
+        assertEquals("字幕组", probe.getSubgroup());
+        assertEquals(List.of("1080"), probe.getMatch());
+        assertEquals(List.of("720"), probe.getExclude());
+        assertEquals(Boolean.TRUE, probe.getGlobalExclude());
+    }
+
+    @Test
+    void incompleteSeasonListBlocksConfirm() {
+        Date day = at(2024, 1, 10);
+        Ani ani = show();
+        TmdbAlignPreview assembled = align(ani, List.of(ani), List.of(rss(25, day)),
+                List.of(episode(1, 25, day)), List.of(), "");
+        assertTrue(assembled.getCanConfirm());
+        TmdbAlignPreview blocked = TmdbAlignService.finish(true, assembled);
+        assertEquals("TMDB 季列表不完整", blocked.getBlockReason());
+        assertFalse(blocked.getCanConfirm());
+        assertTrue(blocked.getEpisodeChoices().isEmpty());
+        assertTrue(TmdbAlignService.finish(false, assembled).getCanConfirm());
+    }
+
+    @Test
+    void failedSeasonDropsPartialEpisodes() {
+        TmdbEpisode kept = episode(1, 25, at(2024, 1, 10));
+        TmdbUtils.AlignEpisodes failed = TmdbUtils.seasonList(true, List.of(kept));
+        assertTrue(failed.incomplete());
+        assertTrue(failed.episodes().isEmpty());
+        TmdbUtils.AlignEpisodes complete = TmdbUtils.seasonList(false, List.of(kept));
+        assertFalse(complete.incomplete());
+        assertEquals(1, complete.episodes().size());
     }
 }

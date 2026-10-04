@@ -1,5 +1,6 @@
 package ani.rss.service;
 
+import ani.rss.commons.GsonStatic;
 import ani.rss.entity.Ani;
 import ani.rss.entity.Config;
 import ani.rss.entity.Item;
@@ -56,8 +57,8 @@ public class TmdbAlignService {
             ani.setTmdb(tmdb);
         }
         ani.setThemoviedbName(TmdbUtils.getFinalName(tmdb));
-        List<Item> items = ItemsUtil.getItems(ani, ani.getUrl(), ani.getSubgroup());
-        List<TmdbEpisode> episodes = TmdbUtils.listEpisodesForAlign(tmdb);
+        List<Item> items = ItemsUtil.getItems(rssNumbers(ani), ani.getUrl(), ani.getSubgroup());
+        TmdbUtils.AlignEpisodes listed = TmdbUtils.listEpisodesForAlign(tmdb);
         List<EmbyPathChoice> hits = new ArrayList<>();
         StringBuilder errors = new StringBuilder();
         List<NotificationConfig> configs = ConfigUtil.CONFIG.getNotificationConfigList();
@@ -69,8 +70,9 @@ public class TmdbAlignService {
                 if (StrUtil.isBlank(config.getEmbyHost()) || StrUtil.isBlank(config.getEmbyApiKey())) {
                     continue;
                 }
-                hits.addAll(embyRefreshService.listSeries(config));
-                String error = embyRefreshService.listSeriesError(config);
+                EmbyRefreshService.SeriesListing listing = embyRefreshService.listSeries(config);
+                hits.addAll(listing.hits());
+                String error = listing.error();
                 if (StrUtil.isNotBlank(error)) {
                     if (!errors.isEmpty()) {
                         errors.append("\n");
@@ -81,7 +83,32 @@ public class TmdbAlignService {
         }
         List<EmbyPathChoice> selected = EmbyMatchUtil.select(hits, tmdb.getId(), tmdb.getName(), tmdb.getOriginalName());
         Config config = ConfigUtil.CONFIG;
-        return assemble(ani, AniUtil.ANI_LIST, items, episodes, selected, errors.toString(), config.getDownloadPathTemplate());
+        return finish(listed.incomplete(), assemble(ani, AniUtil.ANI_LIST, items, listed.episodes(), selected, errors.toString(), config.getDownloadPathTemplate()));
+    }
+
+    public static TmdbAlignPreview finish(boolean seasonsIncomplete, TmdbAlignPreview assembled) {
+        if (!seasonsIncomplete) {
+            return assembled;
+        }
+        TmdbAlignPreview blocked = new TmdbAlignPreview();
+        blocked.setBlockReason("TMDB 季列表不完整");
+        blocked.setCanConfirm(false);
+        blocked.setEpisodeChoices(new ArrayList<>());
+        if (assembled != null) {
+            blocked.setEmbyMessage(assembled.getEmbyMessage());
+            blocked.setThemoviedbName(assembled.getThemoviedbName());
+            blocked.setTmdb(assembled.getTmdb());
+            blocked.setCurrentSeason(assembled.getCurrentSeason());
+            blocked.setCurrentOffset(assembled.getCurrentOffset());
+            blocked.setRenameTemplate(assembled.getRenameTemplate());
+        }
+        return blocked;
+    }
+
+    public static Ani rssNumbers(Ani ani) {
+        Ani copy = GsonStatic.fromJson(GsonStatic.toJson(ani), Ani.class);
+        copy.setOffset(0);
+        return copy;
     }
 
     public static TmdbAlignPreview assemble(Ani ani, List<Ani> subscriptions, List<Item> masterItems,
