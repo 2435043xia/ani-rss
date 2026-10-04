@@ -4,13 +4,16 @@ import ani.rss.annotation.Auth;
 import ani.rss.entity.Ani;
 import ani.rss.entity.dto.ThemoviedbDTO;
 import ani.rss.entity.vo.ThemoviedbVO;
+import ani.rss.entity.vo.TmdbAlignPreview;
 import ani.rss.entity.web.Result;
 import ani.rss.entity.web.ResultCode;
+import ani.rss.service.TmdbAlignService;
 import ani.rss.util.other.RenameUtil;
 import ani.rss.util.other.TmdbUtils;
 import cn.hutool.core.lang.Assert;
 import cn.hutool.core.util.StrUtil;
 import io.swagger.v3.oas.annotations.Operation;
+import jakarta.annotation.Resource;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
@@ -24,6 +27,9 @@ import java.util.Optional;
 
 @RestController
 public class ThemoviedbController extends BaseController {
+
+    @Resource
+    private TmdbAlignService tmdbAlignService;
 
     @Auth
     @Operation(summary = "获取TMDB标题")
@@ -79,5 +85,12 @@ public class ThemoviedbController extends BaseController {
         Assert.notBlank(tmdb.getId(), "tmdb is null");
         List<TmdbGroup> tmdbGroup = TmdbUtils.getTmdbGroup(tmdb);
         return Result.success(tmdbGroup);
+    }
+
+    @Auth
+    @Operation(summary = "预览 TMDB 对齐")
+    @PostMapping("/previewTmdbAlign")
+    public Result<TmdbAlignPreview> previewTmdbAlign(@RequestBody Ani ani) {
+        return Result.success(tmdbAlignService.load(ani));
     }
 }

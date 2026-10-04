@@ -2,9 +2,13 @@ package ani.rss.util.other;
 
 import ani.rss.cache.CacheUtils;
 import ani.rss.commons.ExceptionUtils;
+import ani.rss.commons.GsonStatic;
 import ani.rss.entity.Ani;
 import ani.rss.entity.Config;
 import ani.rss.entity.CustomTmdbConfig;
+import ani.rss.util.basic.HttpReq;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.text.StrFormatter;
 import cn.hutool.core.util.StrUtil;
@@ -13,6 +17,7 @@ import wushuo.tmdb.api.TmdbUtil;
 import wushuo.tmdb.api.entity.*;
 import wushuo.tmdb.api.enums.TmdbTypeEnum;
 
+import java.time.LocalDate;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -285,5 +290,134 @@ public class TmdbUtils {
 
     public static Optional<Tmdb> getTmdb(Tmdb tmdb, TmdbTypeEnum tmdbTypeEnum) {
         return TMDB_UTIL.getTmdb(tmdb, tmdbTypeEnum);
+    }
+
+    /**
+     * 对齐用的全部剧集。剧集组保留原始 season_number，不用会改写季号的季查询。
+     */
+    public static List<TmdbEpisode> listEpisodesForAlign(Tmdb tmdb) {
+        if (tmdb == null || StrUtil.isBlank(tmdb.getId())) {
+            return List.of();
+        }
+        CustomTmdbConfig config = new CustomTmdbConfig();
+        String api = StrUtil.removeSuffix(StrUtil.blankToDefault(config.getTmdbApi(), "https://api.themoviedb.org"), "/");
+        String key = config.getTmdbApiKey();
+        String language = config.getTmdbLanguage();
+        try {
+            if (StrUtil.isNotBlank(tmdb.getTmdbGroupId())) {
+                return episodesFromGroup(api, key, language, tmdb.getTmdbGroupId());
+            }
+            return episodesFromSeasons(api, key, language, tmdb);
+        } catch (Exception e) {
+            log.error("TMDB 对齐读取剧集失败");
+            return List.of();
+        }
+    }
+
+    private static List<TmdbEpisode> episodesFromGroup(String api, String key, String language, String groupId) {
+        JsonObject body = getJson(api + "/3/tv/episode_group/" + groupId, key, language);
+        if (body == null || !body.has("groups") || !body.get("groups").isJsonArray()) {
+            return List.of();
+        }
+        List<TmdbEpisode> episodes = new ArrayList<>();
+        for (JsonElement group : body.getAsJsonArray("groups")) {
+            if (group == null || !group.isJsonObject()) {
+                continue;
+            }
+            JsonObject groupObject = group.getAsJsonObject();
+            if (!groupObject.has("episodes") || !groupObject.get("episodes").isJsonArray()) {
+                continue;
+            }
+            for (JsonElement element : groupObject.getAsJsonArray("episodes")) {
+                if (element != null && element.isJsonObject()) {
+                    TmdbEpisode episode = toEpisode(element.getAsJsonObject());
+                    if (episode != null) {
+                        episodes.add(episode);
+                    }
+                }
+            }
+        }
+        return episodes;
+    }
+
+    private static List<TmdbEpisode> episodesFromSeasons(String api, String key, String language, Tmdb tmdb) {
+        JsonObject body = getJson(api + "/3/tv/" + tmdb.getId(), key, language);
+        if (body == null || !body.has("seasons") || !body.get("seasons").isJsonArray()) {
+            return List.of();
+        }
+        List<TmdbEpisode> episodes = new ArrayList<>();
+        for (JsonElement element : body.getAsJsonArray("seasons")) {
+            if (element == null || !element.isJsonObject() || !element.getAsJsonObject().has("season_number")) {
+                continue;
+            }
+            int seasonNumber = element.getAsJsonObject().get("season_number").getAsInt();
+            if (seasonNumber == 0) {
+                continue;
+            }
+            try {
+                Optional<TmdbSeason> season = getTmdbSeason(tmdb, seasonNumber);
+                if (season.isPresent() && season.get().getEpisodes() != null) {
+                    episodes.addAll(season.get().getEpisodes());
+                }
+            } catch (Exception ignored) {
+                // 某一季失败时继续读其它季，不把密钥写进日志
+            }
+        }
+        return episodes;
+    }
+
+    private static JsonObject getJson(String url, String key, String language) {
+        return HttpReq.get(url)
+                .timeout(5000)
+                .form("api_key", key)
+                .form("language", StrUtil.blankToDefault(language, ""))
+                .thenFunction(res -> {
+                    if (!res.isOk()) {
+                        throw new IllegalStateException(String.valueOf(res.getStatus()));
+                    }
+                    return GsonStatic.fromJson(res.body(), JsonObject.class);
+                });
+    }
+
+    private static TmdbEpisode toEpisode(JsonObject object) {
+        Integer seasonNumber = integer(object, "season_number");
+        Integer episodeNumber = integer(object, "episode_number");
+        if (seasonNumber == null || episodeNumber == null) {
+            return null;
+        }
+        TmdbEpisode episode = new TmdbEpisode()
+                .setSeasonNumber(seasonNumber)
+                .setEpisodeNumber(episodeNumber)
+                .setName(text(object, "name"))
+                .setOrder(integer(object, "order"));
+        String airDate = text(object, "air_date");
+        if (StrUtil.isNotBlank(airDate)) {
+            try {
+                episode.setAirDate(Date.from(LocalDate.parse(airDate)
+                        .atStartOfDay(EpisodeAlignUtil.ZONE)
+                        .toInstant()));
+            } catch (Exception ignored) {
+                episode.setAirDate(null);
+            }
+        }
+        return episode;
+    }
+
+    private static String text(JsonObject object, String key) {
+        if (object == null || !object.has(key) || object.get(key).isJsonNull()) {
+            return "";
+        }
+        return object.get(key).getAsString();
+    }
+
+    private static Integer integer(JsonObject object, String key) {
+        if (object == null || !object.has(key) || object.get(key).isJsonNull()) {
+            return null;
+        }
+        try {
+            return object.get(key).getAsInt();
+        } catch (Exception e) {
+            return null;
+        }
     }
 }
