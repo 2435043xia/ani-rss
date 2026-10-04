@@ -3,18 +3,26 @@ package ani.rss.service;
 import ani.rss.commons.GsonStatic;
 import ani.rss.entity.EmbyViews;
 import ani.rss.entity.NotificationConfig;
+import ani.rss.entity.PathReplaceRule;
+import ani.rss.entity.vo.EmbyPathChoice;
 import ani.rss.util.basic.HttpReq;
+import ani.rss.util.other.PathReplaceUtil;
 import cn.hutool.core.lang.Assert;
+import cn.hutool.core.util.StrUtil;
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Slf4j
 @Service
 public class EmbyRefreshService {
+    private String listSeriesErrorMessage = "";
+
     /**
      * 扫描媒体库
      */
@@ -79,5 +87,98 @@ public class EmbyRefreshService {
                     return body.get("Items").getAsJsonArray();
                 });
         return GsonStatic.fromJsonList(items, EmbyViews.class);
+    }
+
+    public static List<EmbyPathChoice> parseSeries(String embyHost, String json, List<PathReplaceRule> rules) {
+        if (StrUtil.isBlank(json)) {
+            return List.of();
+        }
+        JsonObject body;
+        try {
+            body = GsonStatic.fromJson(json, JsonObject.class);
+        } catch (Exception e) {
+            return List.of();
+        }
+        if (body == null || !body.has("Items") || !body.get("Items").isJsonArray()) {
+            return List.of();
+        }
+        List<EmbyPathChoice> hits = new ArrayList<>();
+        for (JsonElement element : body.getAsJsonArray("Items")) {
+            if (element == null || !element.isJsonObject()) {
+                continue;
+            }
+            JsonObject item = element.getAsJsonObject();
+            String path = text(item, "Path");
+            if (StrUtil.isBlank(path)) {
+                continue;
+            }
+            String tmdbId = "";
+            if (item.has("ProviderIds") && item.get("ProviderIds").isJsonObject()) {
+                tmdbId = text(item.getAsJsonObject("ProviderIds"), "Tmdb");
+            }
+            hits.add(new EmbyPathChoice()
+                    .setEmbyHost(embyHost)
+                    .setSeriesName(text(item, "Name"))
+                    .setTmdbId(tmdbId)
+                    .setOriginalPath(path)
+                    .setReplacedPath(PathReplaceUtil.apply(path, rules)));
+        }
+        return hits;
+    }
+
+    public List<EmbyPathChoice> listSeries(NotificationConfig config) {
+        listSeriesErrorMessage = "";
+        if (config == null || StrUtil.isBlank(config.getEmbyHost()) || StrUtil.isBlank(config.getEmbyApiKey())) {
+            return List.of();
+        }
+        List<String> viewIds = config.getEmbyRefreshViewIds();
+        if (viewIds == null || viewIds.isEmpty()) {
+            return List.of();
+        }
+        List<EmbyPathChoice> hits = new ArrayList<>();
+        StringBuilder errors = new StringBuilder();
+        for (String viewId : viewIds) {
+            if (StrUtil.isBlank(viewId)) {
+                continue;
+            }
+            String url = config.getEmbyHost() + "/emby/Items?ParentId=" + viewId
+                    + "&Recursive=true&IncludeItemTypes=Series&Fields=ProviderIds,Path";
+            try {
+                String body = HttpReq.get(url)
+                        .header("X-Emby-Token", config.getEmbyApiKey())
+                        .thenFunction(res -> {
+                            if (!res.isOk()) {
+                                throw new IllegalStateException(String.valueOf(res.getStatus()));
+                            }
+                            return res.body();
+                        });
+                hits.addAll(parseSeries(config.getEmbyHost(), body, config.getEmbyPathReplaceRules()));
+            } catch (Exception e) {
+                if (!errors.isEmpty()) {
+                    errors.append("\n");
+                }
+                String detail = e.getMessage();
+                if (StrUtil.isBlank(detail)) {
+                    detail = e.getClass().getSimpleName();
+                }
+                errors.append(config.getEmbyHost()).append(" ").append(detail);
+            }
+        }
+        listSeriesErrorMessage = errors.toString();
+        return hits;
+    }
+
+    public String listSeriesError(NotificationConfig config) {
+        if (listSeriesErrorMessage == null) {
+            return "";
+        }
+        return listSeriesErrorMessage;
+    }
+
+    private static String text(JsonObject object, String key) {
+        if (object == null || !object.has(key) || object.get(key).isJsonNull()) {
+            return "";
+        }
+        return object.get(key).getAsString();
     }
 }
