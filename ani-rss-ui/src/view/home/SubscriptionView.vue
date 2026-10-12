@@ -59,6 +59,13 @@
                      @click="confirmRefreshAni">
             刷新
           </el-button>
+          <el-button aria-label="检查翻译字幕"
+                     :loading="subtitleLoading"
+                     class="auto-button"
+                     icon="Tickets"
+                     @click="confirmCheckSubtitles">
+            检查字幕
+          </el-button>
           <el-button aria-label="管理" @click="manageRef?.show" class="auto-button" icon="Fold">
             管理
           </el-button>
@@ -95,6 +102,7 @@ const releaseDate = ref('')
 const releaseDateList = ref([])
 const subscriptionTotal = ref(0)
 const refreshLoading = ref(false)
+const subtitleLoading = ref(false)
 const enable = useLocalStorage('select-enable', '已启用')
 const enableSelect = [
   {
@@ -164,6 +172,32 @@ const confirmRefreshAni = () => {
   })
 }
 
+const checkSubtitles = () => {
+  subtitleLoading.value = true
+  http.checkSubtitles()
+      .then(res => {
+        ElMessage.success(res.message)
+      })
+      .finally(() => {
+        subtitleLoading.value = false
+      })
+}
+
+const confirmCheckSubtitles = () => {
+  ElMessageBox.confirm(
+      '只检查已开启「翻译字幕」的订阅，给还没有中文字幕的视频补翻。不会刷新 RSS。',
+      '检查翻译字幕',
+      {
+        confirmButtonText: '开始检查',
+        confirmButtonClass: 'is-text is-has-bg el-button--primary',
+        cancelButtonText: '取消',
+        cancelButtonClass: 'is-text is-has-bg',
+        type: 'info'
+      }
+  ).then(checkSubtitles).catch(() => {
+  })
+}
+
 onMounted(() => {
   selectChange()
 })
@@ -193,6 +227,8 @@ onMounted(() => {
 
 .subscription-actions {
   flex-shrink: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .subscription-actions > * {

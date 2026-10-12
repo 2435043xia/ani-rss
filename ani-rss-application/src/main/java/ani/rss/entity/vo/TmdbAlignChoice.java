@@ -14,6 +14,7 @@ public class TmdbAlignChoice {
     private Integer newOffset;
     private String sampleFileName;
     private String fallbackPath;
+    private String seasonFolder;
     private Boolean seasonConflict;
     private String conflictWith;
 }

@@ -46,6 +46,9 @@ public class DownloadService {
     @Resource
     private ScrapeService scrapeService;
 
+    @Resource
+    private SubtitleTranslateService subtitleTranslateService;
+
     /**
      * 下载动漫
      *
@@ -472,6 +475,11 @@ public class DownloadService {
         String text = StrFormatter.format("{} 下载完成", name);
         if (tags.contains(TorrentsTagEnum.STANDBY_RSS.getValue())) {
             text = StrFormatter.format("(备用RSS) {}", text);
+        }
+        try {
+            subtitleTranslateService.translateCompleted(ani, torrentsInfo);
+        } catch (Exception e) {
+            log.error("字幕翻译失败 {}", name);
         }
         NotificationUtil.send(CONFIG, ani, text, NotificationStatusEnum.DOWNLOAD_END);
 

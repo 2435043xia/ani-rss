@@ -57,14 +57,14 @@
         <div class="align-label">下载路径</div>
         <div v-if="preview.embyChoices.length === 1">
           <div>{{ preview.embyChoices[0].seriesName }}（{{ preview.embyChoices[0].embyHost }}）</div>
-          <div>{{ preview.embyChoices[0].replacedPath }}</div>
+          <div>{{ withSeason(preview.embyChoices[0].replacedPath) }}</div>
           <div class="align-muted">原路径 {{ preview.embyChoices[0].originalPath }}</div>
         </div>
         <div v-else-if="preview.embyChoices.length > 1" class="align-choices">
           <el-radio-group v-model="embyIndex">
             <el-radio v-for="(hit, index) in preview.embyChoices" :key="index" :value="index">
               <div>{{ hit.seriesName }}（{{ hit.embyHost }}）</div>
-              <div>{{ hit.replacedPath }}</div>
+              <div>{{ withSeason(hit.replacedPath) }}</div>
               <div class="align-muted">原路径 {{ hit.originalPath }}</div>
             </el-radio>
           </el-radio-group>
@@ -128,6 +128,22 @@ const canConfirm = computed(() => {
 
 const pad = (value) => String(value ?? "").padStart(2, "0")
 
+const withSeason = (path) => {
+  if (!path) {
+    return ""
+  }
+  if (/(?:^|[/\\])Season(?:\s*\d+)?(?:$|[/\\])/i.test(path)) {
+    return path
+  }
+  const folder = selectedChoice.value?.seasonFolder || ""
+  if (!folder) {
+    return path
+  }
+  const base = path.replace(/[/\\]+$/, "")
+  const suffix = folder.startsWith("/") || folder.startsWith("\\") ? folder : "/" + folder
+  return base + suffix
+}
+
 const show = () => {
   http.previewTmdbAlign(props.ani)
       .then(res => {
@@ -152,7 +168,7 @@ const confirm = () => {
   props.ani.themoviedbName = preview.value.themoviedbName
   props.ani.customDownloadPath = true
   if (preview.value.embyChoices.length > 0) {
-    props.ani.customDownloadPathTemplate = preview.value.embyChoices[embyIndex.value].replacedPath
+    props.ani.customDownloadPathTemplate = withSeason(preview.value.embyChoices[embyIndex.value].replacedPath)
   } else {
     props.ani.customDownloadPathTemplate = choice.fallbackPath
   }
@@ -191,6 +207,32 @@ defineExpose({show})
   display: flex;
   flex-direction: column;
   align-items: flex-start;
+  width: 100%;
+}
+
+.align-choices :deep(.el-radio-group) {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+}
+
+.align-choices :deep(.el-radio) {
+  height: auto;
+  align-items: flex-start;
+  white-space: normal;
+  margin-right: 0;
+  margin-bottom: 12px;
+}
+
+.align-choices :deep(.el-radio__input) {
+  margin-top: 4px;
+}
+
+.align-choices :deep(.el-radio__label) {
+  white-space: normal;
+  line-height: 1.5;
+  word-break: break-all;
 }
 
 .align-muted {

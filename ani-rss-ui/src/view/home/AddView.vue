@@ -115,7 +115,7 @@
           @click="showRss = true">
         返回 RSS
       </el-button>
-      <AniView v-model:ani="ani" @callback="addAni"/>
+      <AniView v-model:ani="ani" show-continue @callback="addAni" @continue="addAndContinue"/>
     </div>
   </el-dialog>
 </template>
@@ -194,14 +194,26 @@ const getRss = () => {
       })
 }
 
-const addAni = (fun) => {
+const saveNewAni = (fun, keepOpen) => {
   http.addAni(ani.value)
       .then(res => {
         ElMessage.success(res.message)
         window.$reLoadList()
-        dialogVisible.value = false
+        if (!keepOpen) {
+          dialogVisible.value = false
+          return
+        }
+        ani.value = JSON.parse(JSON.stringify(aniData))
+        showRss.value = true
+        if (activeName.value === 'mikan') {
+          mikanRef.value?.reopen()
+        }
       }).finally(fun)
 }
+
+const addAni = (fun) => saveNewAni(fun, false)
+
+const addAndContinue = (fun) => saveNewAni(fun, true)
 
 const activeName = useLocalStorage('add-active-name', 'mikan')
 

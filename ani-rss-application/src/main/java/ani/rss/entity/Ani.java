@@ -250,6 +250,12 @@ public class Ani implements Serializable {
     private Tmdb tmdb;
 
     /**
+     * 下载完成后翻译文字软字幕
+     */
+    @Schema(description = "翻译字幕")
+    private Boolean translateSubtitle;
+
+    /**
      * 自动上传
      */
     @Schema(description = "自动上传")
