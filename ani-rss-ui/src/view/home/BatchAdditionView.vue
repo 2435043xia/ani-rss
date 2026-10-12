@@ -13,7 +13,7 @@
         <div v-if="item.status === 'loading'" v-loading="true" class="batch-loading">正在加载订阅信息…</div>
         <el-alert v-else-if="item.status === 'error'" :title="item.error" type="error" show-icon :closable="false"/>
         <div v-else-if="item.ani" class="batch-editor">
-          <AniView v-model:ani="item.ani" @callback="confirmItem(item, $event)"/>
+          <AniView v-model:ani="item.ani" :show-continue="showContinue && entries.length === 1" @callback="confirmItem(item, $event)" @continue="continueItem(item, $event)"/>
         </div>
         <div v-if="item.status === 'error'" class="batch-actions">
           <el-button type="primary" :loading="item.status === 'loading'" @click="retry(item)">重试</el-button>
@@ -33,9 +33,10 @@ import {aniData} from '@/js/ani.js'
 const props = defineProps({
   modelValue: Boolean,
   items: {type: Array, default: () => []},
-  type: {type: String, required: true}
+  type: {type: String, required: true},
+  showContinue: {type: Boolean, default: false}
 })
-const emit = defineEmits(['update:modelValue', 'done'])
+const emit = defineEmits(['update:modelValue', 'done', 'continued'])
 const entries = ref([])
 const activeName = ref('')
 const visible = computed({get: () => props.modelValue, set: value => emit('update:modelValue', value)})
@@ -177,6 +178,21 @@ const closeItem = item => {
 const closeItemById = id => {
   const item = entries.value.find(value => value.id === id)
   if (item) closeItem(item)
+}
+
+const continueItem = async (item, done) => {
+  try {
+    const added = await addSubscription(item)
+    if (!added) return
+    ElMessage.success('订阅添加成功')
+    entries.value = []
+    emit('update:modelValue', false)
+    emit('continued')
+  } catch (error) {
+    ElMessage.error(error?.message || '订阅添加失败')
+  } finally {
+    done?.()
+  }
 }
 
 defineExpose({open, openRequests})

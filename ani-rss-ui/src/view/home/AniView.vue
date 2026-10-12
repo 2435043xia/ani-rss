@@ -54,6 +54,13 @@
                 <el-button bg text icon="Menu" @click="tmdbGroupRef?.show"/>
               </div>
             </el-form-item>
+            <el-form-item label="翻译字幕">
+              <div class="flex" style="align-items: center; gap: 8px;">
+                <el-switch v-model="props.ani.translateSubtitle" :disabled="!hasTranslateTmdbId"/>
+                <el-text v-if="!hasTranslateTmdbId" type="info" size="small">先做 TMDB 对齐</el-text>
+                <el-text v-else type="info" size="small">保存后补翻这个订阅。全部已勾选的，用订阅页的「检查字幕」</el-text>
+              </div>
+            </el-form-item>
             <el-form-item label="BgmUrl">
               <div class="tmdb-group">
                 <el-input v-model.trim="props.ani.bgmUrl" placeholder="https://bgm.tv/subject/12345"/>
@@ -292,11 +299,10 @@
     </div>
     <div>
       <el-button @click="previewRef.show()" bg text icon="Grid">预览</el-button>
-      <el-button icon="Check" type="primary" :loading="okLoading" @click="async ()=>{
-        standbyRssRef?.normalize()
-        okLoading = true
-        emit('callback',()=>okLoading = false)
-      }" text bg>确定
+      <el-button icon="Check" :type="showContinue ? 'default' : 'primary'" :loading="okLoading" @click="confirm(false)" text bg>确定
+      </el-button>
+      <el-button v-if="showContinue" icon="Check" type="primary" :loading="okLoading" @click="confirm(true)" text bg>
+        确定并继续
       </el-button>
     </div>
   </div>
@@ -307,7 +313,7 @@
 import ExcludeView from "@/view/config/ExcludeView.vue";
 import PrioKeysView from "@/view/config/PrioKeysView.vue";
 import PreviewView from "./PreviewView.vue";
-import {onMounted, ref} from "vue";
+import {computed, onMounted, ref, watch} from "vue";
 import {ElMessage, ElMessageBox, ElText} from "element-plus";
 import StandbyRssView from "./StandbyRssView.vue";
 import MikanView from "./MikanView.vue";
@@ -454,9 +460,33 @@ let openUrl = (url) => window.open(url)
 
 let props = defineProps({
   ani: Object,
-  editMode: {type: Boolean, default: false}
+  editMode: {type: Boolean, default: false},
+  showContinue: {
+    type: Boolean,
+    default: false
+  }
 })
-const emit = defineEmits(['callback'])
+const hasTranslateTmdbId = computed(() => {
+  const id = String(props.ani?.tmdb?.id ?? "").trim()
+  return id !== "" && id !== "0"
+})
+watch(hasTranslateTmdbId, (ok) => {
+  if (!ok && props.ani) {
+    props.ani.translateSubtitle = false
+  }
+})
+const emit = defineEmits(['callback', 'continue'])
+
+const confirm = (keepOpen) => {
+  standbyRssRef.value?.normalize()
+  okLoading.value = true
+  const done = () => okLoading.value = false
+  if (keepOpen) {
+    emit('continue', done)
+    return
+  }
+  emit('callback', done)
+}
 </script>
 
 <style scoped>

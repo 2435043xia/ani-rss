@@ -41,6 +41,7 @@ export let aniData = {
         "name": "",
         "date": "2025-01-01 00:00:00"
     },
+    "translateSubtitle": false,
     "upload": true,
     "procrastinating": true,
     "customRenameTemplateEnable": false,

@@ -10,4 +10,5 @@ ENV JAVA_OPTS="-Xms64m -Xmx512m -Xss256k -XX:+UseG1GC"
 ENV SERVER_PORT=7789 CONFIG=/config TZ=Asia/Shanghai SWAGGER_ENABLED=false MCP_ENABLED=false
 EXPOSE $SERVER_PORT
 RUN sed -i 's/\r//g' /*.sh && chmod +x /*.sh
+RUN apk add --no-cache ffmpeg openssh-client
 CMD ["/exec.sh"]

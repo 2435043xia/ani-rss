@@ -93,6 +93,17 @@ public class AniController extends BaseController {
     }
 
     @Auth
+    @Operation(summary = "检查翻译字幕")
+    @PostMapping("/checkSubtitles")
+    public Result<Void> checkSubtitles() {
+        int count = aniService.checkSubtitles();
+        if (count == 0) {
+            return Result.success("没有开启翻译字幕的订阅");
+        }
+        return Result.success("已开始检查 " + count + " 个订阅的字幕");
+    }
+
+    @Auth
     @Operation(summary = "将RSS转换为订阅")
     @PostMapping("/rssToAni")
     public Result<Ani> rssToAni(@RequestBody RssToAniDTO dto) {

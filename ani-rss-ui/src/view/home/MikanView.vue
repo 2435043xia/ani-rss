@@ -1,7 +1,7 @@
 <template>
   <BatchAdditionView ref="batchAdditionRef" v-model="batchAdditionDialogVisible" :items="batchAdditionItems"
-                     type="mikan"
-                     @done="batchDone"/>
+                     type="mikan" show-continue
+                     @done="batchDone" @continued="addContinued"/>
   <el-dialog v-model="matchDialogVisible" align-center center title="匹配" width="auto" @close="cancelBatchMatch">
     <div class="match-content">
       <el-radio-group v-model="addAni.match">
@@ -64,7 +64,13 @@
                           </div>
                           <div v-if="it['score'] > 0" class="score-margin">
                             <h4 class="score-color">
-                              {{ it['score'].toFixed(1) }}
+                              <a v-if="it.bgmUrl || it.bgmId" class="score-link"
+                                 :href="it.bgmUrl || `https://bgm.tv/subject/${it.bgmId}`"
+                                 target="_blank" rel="noopener"
+                                 @click.stop>
+                                {{ it['score'].toFixed(1) }}
+                              </a>
+                              <template v-else>{{ it['score'].toFixed(1) }}</template>
                             </h4>
                           </div>
                           <el-badge v-if="it['exists']" class="item badge-margin" type="primary"
@@ -338,7 +344,12 @@ let open = url => {
   window.open(url);
 }
 
-defineExpose({show})
+let reopen = () => {
+  matchDialogVisible.value = false
+  dialogVisible.value = true
+}
+
+defineExpose({show, reopen})
 
 let emit = defineEmits(['callback'])
 
@@ -359,6 +370,11 @@ let batchAddition = async () => {
 
 let batchDone = () => {
   window.$reLoadList?.()
+}
+
+let addContinued = () => {
+  window.$reLoadList?.()
+  reopen()
 }
 
 let copy = (v) => {
@@ -444,6 +460,13 @@ let openUrl = (url) => window.open(url)
 
 .score-margin {
   margin-left: 4px;
+}
+
+.score-link {
+  color: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .score-color {

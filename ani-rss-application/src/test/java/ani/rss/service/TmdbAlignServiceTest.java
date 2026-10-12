@@ -145,7 +145,7 @@ class TmdbAlignServiceTest {
         assertTrue(ani.getCustomRenameTemplateEnable());
         assertEquals("葬送的芙莉莲 S${seasonFormat}E${episodeFormat}", ani.getCustomRenameTemplate());
         assertTrue(ani.getCustomDownloadPath());
-        assertEquals("/mnt/smb/downloads/葬送的芙莉莲", ani.getCustomDownloadPathTemplate());
+        assertEquals("/mnt/smb/downloads/葬送的芙莉莲/Season 01", ani.getCustomDownloadPathTemplate());
         assertEquals("葬送的芙莉莲", ani.getThemoviedbName());
         assertEquals("99", ani.getTmdb().getId());
         assertEquals("keep", ani.getTmdb().getTmdbGroupId());
@@ -201,5 +201,19 @@ class TmdbAlignServiceTest {
         TmdbUtils.AlignEpisodes complete = TmdbUtils.seasonList(false, List.of(kept));
         assertFalse(complete.incomplete());
         assertEquals(1, complete.episodes().size());
+    }
+
+    @Test
+    void embySeriesFolderGainsTheTemplateSeason() {
+        Date day = at(2024, 1, 10);
+        String series = "/downloads/anirss/anime/野生的大魔王出现了！ (2025)";
+        TmdbAlignPreview preview = align(show(), List.of(show()), List.of(rss(1, day)),
+                List.of(episode(2, 1, day)),
+                List.of(new EmbyPathChoice().setReplacedPath(series)),
+                "");
+        TmdbAlignChoice choice = preview.getEpisodeChoices().get(0);
+        assertEquals("/Season 02", choice.getSeasonFolder());
+        assertEquals(series + "/Season 02", TmdbAlignService.withSeasonFolder(series, choice.getSeasonFolder()));
+        assertEquals(series + "/Season 1", TmdbAlignService.withSeasonFolder(series + "/Season 1", "/Season 02"));
     }
 }

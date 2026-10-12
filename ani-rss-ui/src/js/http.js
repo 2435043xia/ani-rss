@@ -104,6 +104,12 @@ export let refreshAll = () => api.post('api/refreshAll')
 export let refreshAni = (ani) => api.post('api/refreshAni', ani)
 
 /**
+ * 检查已开启翻译字幕的订阅，不刷新 RSS
+ * @returns {Promise<unknown>}
+ */
+export let checkSubtitles = () => api.post('api/checkSubtitles')
+
+/**
  * 将RSS转换为订阅
  * @param ani 订阅
  * @returns {Promise<unknown>}

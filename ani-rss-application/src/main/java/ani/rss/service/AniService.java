@@ -37,6 +37,9 @@ public class AniService {
     @Resource
     private ClearService clearService;
 
+    @Resource
+    private SubtitleTranslateService subtitleTranslateService;
+
     /**
      * 添加订阅
      *
@@ -93,6 +96,7 @@ public class AniService {
             });
         }
         log.info("添加订阅 {} {} {}", title, ani.getUrl(), ani.getId());
+        backfillSubtitles(List.of(ani));
     }
 
     /**
@@ -125,7 +129,7 @@ public class AniService {
                 String downloadPath = downloadService.getDownloadPath(oldAni);
                 String newDownloadPath = downloadService.getDownloadPath(ani);
                 if (downloadPath.equals(newDownloadPath)) {
-                    // 位置未发生改变
+                    subtitleTranslateService.translateInDirectory(ani, newDownloadPath);
                     return;
                 }
 
@@ -146,6 +150,7 @@ public class AniService {
                 } catch (Exception e) {
                     log.error(ExceptionUtils.getMessage(e), e);
                 }
+                subtitleTranslateService.translateInDirectory(ani, newDownloadPath);
             });
         }
 
@@ -162,8 +167,32 @@ public class AniService {
         }
         clearService.clearDir(torrentDir);
         AniUtil.sync();
+        if (!Boolean.parseBoolean(move)) {
+            backfillSubtitles(List.of(first.get()));
+        }
 
         log.info("修改订阅 {} {} {}", ani.getTitle(), ani.getUrl(), ani.getId());
+    }
+
+    /**
+     * 只检查勾选了翻译字幕的订阅，不刷新 RSS。
+     *
+     * @return 将要检查的订阅数
+     */
+    public int checkSubtitles() {
+        return backfillSubtitles(new ArrayList<>(AniUtil.ANI_LIST));
+    }
+
+    private int backfillSubtitles(List<Ani> anis) {
+        List<SubtitleTranslateService.Target> targets = new ArrayList<>();
+        for (Ani ani : anis) {
+            if (ani == null || !Boolean.TRUE.equals(ani.getTranslateSubtitle())) {
+                continue;
+            }
+            targets.add(new SubtitleTranslateService.Target(ani, downloadService.getDownloadPath(ani)));
+        }
+        subtitleTranslateService.translateExistingAsync(targets);
+        return targets.size();
     }
 
     public void deleteAni(List<String> ids, Boolean deleteFiles) {

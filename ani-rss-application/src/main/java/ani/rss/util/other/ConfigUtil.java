@@ -112,6 +112,30 @@ public class ConfigUtil {
     public static void format(Config config) {
         formatPath(config);
         formatUrl(config);
+        config.setSubtitleTranslateApiBase(StrUtil.blankToDefault(config.getSubtitleTranslateApiBase(), "https://api.deepseek.com").trim());
+        config.setSubtitleTranslateModel(StrUtil.blankToDefault(config.getSubtitleTranslateModel(), "deepseek-chat").trim());
+        config.setSubtitleTranslateApiKey(StrUtil.blankToDefault(config.getSubtitleTranslateApiKey(), "").trim());
+        config.setSubtitleTranslateGlossaryPath(StrUtil.blankToDefault(config.getSubtitleTranslateGlossaryPath(), "").trim());
+        String subtitleBackend = StrUtil.blankToDefault(config.getSubtitleTranslateBackend(), "api").trim().toLowerCase();
+        config.setSubtitleTranslateBackend("ssh".equals(subtitleBackend) ? "ssh" : "api");
+        config.setSubtitleTranslateSshHost(StrUtil.blankToDefault(config.getSubtitleTranslateSshHost(), "").trim());
+        Integer subtitlePort = config.getSubtitleTranslateSshPort();
+        if (subtitlePort == null || subtitlePort < 1 || subtitlePort > 65535) {
+            config.setSubtitleTranslateSshPort(22);
+        }
+        config.setSubtitleTranslateSshUser(StrUtil.blankToDefault(config.getSubtitleTranslateSshUser(), "").trim());
+        config.setSubtitleTranslateSshKeyPath(StrUtil.blankToDefault(config.getSubtitleTranslateSshKeyPath(), "").trim());
+        config.setSubtitleTranslateOrcaBin(StrUtil.blankToDefault(config.getSubtitleTranslateOrcaBin(), "").trim());
+        config.setSubtitleTranslateOrcaWorktree(StrUtil.blankToDefault(config.getSubtitleTranslateOrcaWorktree(), "").trim());
+        config.setSubtitleTranslateGrokModel(StrUtil.blankToDefault(config.getSubtitleTranslateGrokModel(), "").trim());
+        String subtitleEffort = StrUtil.blankToDefault(config.getSubtitleTranslateReasoningEffort(), "").trim().toLowerCase();
+        if ("max".equals(subtitleEffort)) {
+            subtitleEffort = "xhigh";
+        }
+        if (!subtitleEffort.isEmpty() && !java.util.List.of("low", "medium", "high", "xhigh").contains(subtitleEffort)) {
+            subtitleEffort = "medium";
+        }
+        config.setSubtitleTranslateReasoningEffort(subtitleEffort);
 
         String messageTemplate = config.getNotificationTemplate();
         config.setNotificationTemplate(messageTemplate.trim());

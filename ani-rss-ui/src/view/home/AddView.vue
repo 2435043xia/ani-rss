@@ -1,6 +1,6 @@
 <template>
   <BatchAdditionView ref="batchAdditionRef" v-model="batchAdditionDialogVisible" :items="[]" type="other"
-                     @done="batchDone"/>
+                     show-continue @done="batchDone" @continued="addContinued"/>
   <AnimeGardenView ref="animeGardenRef"/>
   <AniBTView ref="aniBTRef"/>
   <MikanView ref="mikanRef"/>
@@ -193,6 +193,14 @@ let bgmCallback = it => {
 
 let batchDone = () => {
   window.$reLoadList?.()
+}
+
+let addContinued = () => {
+  window.$reLoadList?.()
+  ani.value = JSON.parse(JSON.stringify(aniData))
+  if (activeName.value === 'mikan') {
+    mikanRef.value?.reopen()
+  }
 }
 
 defineExpose({show})

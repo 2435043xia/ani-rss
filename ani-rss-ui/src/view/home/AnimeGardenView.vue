@@ -49,7 +49,13 @@
                           </div>
                           <div v-if="anime['score'] > 0" class="score-margin">
                             <h4 class="score-color">
-                              {{ anime['score'].toFixed(1) }}
+                              <a v-if="anime.id" class="score-link"
+                                 :href="`https://bgm.tv/subject/${anime.id}`"
+                                 target="_blank" rel="noopener"
+                                 @click.stop>
+                                {{ anime['score'].toFixed(1) }}
+                              </a>
+                              <template v-else>{{ anime['score'].toFixed(1) }}</template>
                             </h4>
                           </div>
                           <el-badge v-if="anime['exists']" class="item badge-margin" type="primary"
@@ -360,6 +366,13 @@ let copy = (v) => {
 
 .score-margin {
   margin-left: 4px;
+}
+
+.score-link {
+  color: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .score-color {

@@ -23,6 +23,7 @@ import wushuo.tmdb.api.entity.Tmdb;
 import wushuo.tmdb.api.entity.TmdbEpisode;
 
 import java.time.LocalDate;
+import java.util.regex.Pattern;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -30,6 +31,7 @@ import java.util.Optional;
 
 @Service
 public class TmdbAlignService {
+    private static final Pattern SEASON_FOLDER = Pattern.compile("(?i)(?:^|[/\\\\])Season(?:\\s*\\d+)?(?:$|[/\\\\])");
     private final EmbyRefreshService embyRefreshService;
 
     public TmdbAlignService(EmbyRefreshService embyRefreshService) {
@@ -166,6 +168,7 @@ public class TmdbAlignService {
                     .setNewOffset(offset)
                     .setSampleFileName(EpisodeAlignUtil.sampleName(tmdbName, season, episodeNumber))
                     .setFallbackPath(fallbackPath(globalDownloadTemplate, tmdbName, season))
+                    .setSeasonFolder(seasonFolder(globalDownloadTemplate, season))
                     .setSeasonConflict(conflict.isPresent())
                     .setConflictWith(conflict.map(Ani::getTitle).orElse("")));
         }
@@ -190,7 +193,8 @@ public class TmdbAlignService {
         ani.setCustomRenameTemplate(preview.getRenameTemplate());
         ani.setCustomDownloadPath(true);
         if (embyIndex != null) {
-            ani.setCustomDownloadPathTemplate(preview.getEmbyChoices().get(embyIndex).getReplacedPath());
+            String replaced = preview.getEmbyChoices().get(embyIndex).getReplacedPath();
+            ani.setCustomDownloadPathTemplate(withSeasonFolder(replaced, choice.getSeasonFolder()));
         } else {
             ani.setCustomDownloadPathTemplate(choice.getFallbackPath());
         }
@@ -203,6 +207,31 @@ public class TmdbAlignService {
                 ani.getTmdb().setTmdbGroupId(groupId);
             }
         }
+    }
+
+    public static String withSeasonFolder(String path, String seasonFolder) {
+        if (StrUtil.isBlank(path) || StrUtil.isBlank(seasonFolder) || SEASON_FOLDER.matcher(path).find()) {
+            return path;
+        }
+        String base = StrUtil.removeSuffix(StrUtil.removeSuffix(path, "/"), "\\");
+        String folder = seasonFolder.startsWith("/") || seasonFolder.startsWith("\\") ? seasonFolder : "/" + seasonFolder;
+        return base + folder;
+    }
+
+    static String seasonFolder(String template, int season) {
+        String source = StrUtil.blankToDefault(template, "");
+        int marker = source.indexOf("${title}");
+        String suffix = marker >= 0 ? source.substring(marker + "${title}".length()) : "";
+        suffix = suffix.replace("${seasonFormat}", String.format("%02d", season));
+        suffix = suffix.replace("${season}", String.valueOf(season));
+        if (!suffix.toLowerCase().contains("season")) {
+            suffix = "/Season " + season;
+        }
+        suffix = suffix.trim();
+        if (!suffix.startsWith("/") && !suffix.startsWith("\\")) {
+            suffix = "/" + suffix;
+        }
+        return suffix;
     }
 
     private static String fallbackPath(String template, String tmdbName, int season) {

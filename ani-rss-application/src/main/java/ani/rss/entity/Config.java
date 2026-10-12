@@ -687,6 +687,45 @@ public class Config implements Serializable {
     @Schema(description = "字幕独立文件夹")
     private String subtitleIndependentFolderName;
 
+    @Schema(description = "字幕翻译 API 地址")
+    private String subtitleTranslateApiBase;
+
+    @Schema(description = "字幕翻译模型")
+    private String subtitleTranslateModel;
+
+    @Schema(description = "字幕翻译 API Key")
+    private String subtitleTranslateApiKey;
+
+    @Schema(description = "字幕术语表目录")
+    private String subtitleTranslateGlossaryPath;
+
+    @Schema(description = "字幕翻译方式，api 或 ssh")
+    private String subtitleTranslateBackend;
+
+    @Schema(description = "字幕翻译 SSH 主机")
+    private String subtitleTranslateSshHost;
+
+    @Schema(description = "字幕翻译 SSH 端口")
+    private Integer subtitleTranslateSshPort;
+
+    @Schema(description = "字幕翻译 SSH 用户")
+    private String subtitleTranslateSshUser;
+
+    @Schema(description = "字幕翻译 SSH 私钥路径")
+    private String subtitleTranslateSshKeyPath;
+
+    @Schema(description = "远端 orca 路径，留空则用 /usr/local/bin/orca")
+    private String subtitleTranslateOrcaBin;
+
+    @Schema(description = "Orca 工作区，例如 name:misc 或 path:/绝对路径")
+    private String subtitleTranslateOrcaWorktree;
+
+    @Schema(description = "SSH 翻译模型")
+    private String subtitleTranslateGrokModel;
+
+    @Schema(description = "SSH 翻译思维强度")
+    private String subtitleTranslateReasoningEffort;
+
     @Schema(description = "bgmApi")
     private String bgmApi;
 
