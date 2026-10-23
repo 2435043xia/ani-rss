@@ -26,6 +26,20 @@
 
 - 47 项 Java 测试、9 项远端脚本流程、4 项前端选择逻辑测试通过，Vue 生产构建通过。新增检查包含带提供商前缀的模型、动态新增强度、消失的模型、错误强度、继承模式、启动失败回执的资源释放以及模型请求不携带其他 API 的密钥。
 - 实际连接 macmini，读取当前 Orca 模型目录；用本次脚本发起 Codex + `ark/gpt-5.6-luna` + `low`，两句合成日文字幕成功得到两句中文及术语块。启动回执的 `effective` 与请求的执行器、模型和强度一致，完成后的 worker 为 `succeeded`，终端资源为 `released`、观察状态为 `exited`。
-- 未使用真实番剧文件，未替换运行中的服务，也未向镜像仓库发布。生成的包、构建和执行证据放在 builder 的 `/home/builder/ani-rss-orca-models-20261024/`；本机也保留本轮源文件与验证证据。
+- 未使用真实番剧文件，未替换运行中的服务。初次验收后，提交 `a439998` 已推送到 fork 的 `codex/subtitle-orca-models`，镜像已发布到 `blumenkranz714/ani-rss` 与 `registry.888987.xyz/ani-rss`，同时保留 `latest` 和 `3.2.48-orca-models` 标签。生成的包、构建和执行证据放在 builder 的 `/home/builder/ani-rss-orca-models-20261024/`；本机也保留本轮源文件与验证证据。
 
 构建需要 JDK 25；builder 的 Maven 容器还需 Node 对应的 `libatomic`。Git 工作树构建时需挂载实际的公共 `.git` 目录。测试通过 `CONFIG=/tmp/ani-rss-test-config` 隔离运行配置，避免将生成的配置当作源码提交。
+
+## Orca 冷启动时的模型查询
+
+Orca `1.4.237` 的 `agentSession.modelCatalog` 依赖已初始化的内部会话服务。服务尚未初始化时，接口会返回 `structured_agent_session_unsupported`，详情为 `hostDisabled`；这不表示机器没有模型，也不是安装包不同。
+
+查询脚本只在收到上述明确错误时，执行一次只读的 `aiVault.listSessions({limit: 1})` 初始化服务，丢弃返回的目录元数据，再重试模型查询一次。此版本的 `limit: 0` 会使用默认数量，因此这里明确限制为一条。同一次刷新中的多个执行器共用初始化请求。已就绪的服务直接查询；其他权限、兼容性或连接错误继续按原逻辑返回，初始化或重试失败后结束本次恢复，不循环重试。该流程不创建 AI 对话或 worker，也不修改 Orca 的聊天模式、模型或强度设置。
+
+新增回归测试覆盖冷启动、并发执行器、指定执行器、两种错误回执、权限拒绝、部分目录失败、初始化失败和重试仍失败。使用执行端的 Node 运行：
+
+```sh
+node --test ani-rss-application/src/test/node/catalog_rpc.test.cjs
+```
+
+排查时，开发 Mac 与 macmini 的版本和核心代码摘要一致；开发 Mac 在初始化前复现 `hostDisabled`，只读初始化后成功读取 7 个 Codex 模型和各模型的强度。

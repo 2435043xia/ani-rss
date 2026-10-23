@@ -12,6 +12,26 @@ const agentID = /^[a-z][a-z0-9_-]{0,63}$/;
 const modelID = /^[A-Za-z0-9][A-Za-z0-9._:/@-]{0,199}$/;
 const effortID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,39}$/;
 const label = (value, fallback) => typeof value === "string" && value.trim() ? value.slice(0, 200) : fallback;
+let hostInitialization;
+
+async function readModelCatalog(agent) {
+  const params = {agent, waitForListing: true};
+  try {
+    return await client.call("agentSession.modelCatalog", params);
+  } catch (error) {
+    const refusal = error?.data?.refusal ?? error?.response?.error?.data?.refusal;
+    if (refusal?.code !== "structured_agent_session_unsupported" || refusal?.details?.reason !== "hostDisabled") {
+      throw error;
+    }
+    // modelCatalog does not initialize the structured host on a fresh Orca runtime.
+    // A bounded metadata-only list request initializes it without creating a chat.
+    // Orca treats limit: 0 as its default limit; discard the single-row result.
+    // Share this promise across concurrent agents, then retry each catalog once.
+    hostInitialization ??= client.call("aiVault.listSessions", {limit: 1});
+    await hostInitialization;
+    return client.call("agentSession.modelCatalog", params);
+  }
+}
 
 async function main() {
   const [status, registered] = await Promise.all([
@@ -26,7 +46,7 @@ async function main() {
     const supportsModelSelection = canSelect && launch?.supportsWorkerLaunchPreferences === true;
     const title = label(agent.label, agent.agent);
     try {
-      const response = await client.call("agentSession.modelCatalog", {agent: agent.agent, waitForListing: true});
+      const response = await readModelCatalog(agent.agent);
       const catalog = response.result || {};
       const rows = (catalog.models || []).filter(row => row && modelID.test(row.id)).slice(0, 500);
       if (!supportsModelSelection) {
