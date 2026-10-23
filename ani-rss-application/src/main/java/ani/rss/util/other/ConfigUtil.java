@@ -127,6 +127,9 @@ public class ConfigUtil {
         config.setSubtitleTranslateSshKeyPath(StrUtil.blankToDefault(config.getSubtitleTranslateSshKeyPath(), "").trim());
         config.setSubtitleTranslateOrcaBin(StrUtil.blankToDefault(config.getSubtitleTranslateOrcaBin(), "").trim());
         config.setSubtitleTranslateOrcaWorktree(StrUtil.blankToDefault(config.getSubtitleTranslateOrcaWorktree(), "").trim());
+        config.setSubtitleTranslateOrcaAgent(StrUtil.blankToDefault(config.getSubtitleTranslateOrcaAgent(), "grok").trim());
+        config.setSubtitleTranslateOrcaModel(StrUtil.blankToDefault(config.getSubtitleTranslateOrcaModel(), "").trim());
+        config.setSubtitleTranslateOrcaEffort(StrUtil.blankToDefault(config.getSubtitleTranslateOrcaEffort(), "").trim());
         config.setSubtitleTranslateGrokModel(StrUtil.blankToDefault(config.getSubtitleTranslateGrokModel(), "").trim());
         String subtitleEffort = StrUtil.blankToDefault(config.getSubtitleTranslateReasoningEffort(), "").trim().toLowerCase();
         if ("max".equals(subtitleEffort)) {

@@ -235,10 +235,11 @@ public class SubtitleTranslateService {
                 log.info("未配置字幕翻译 SSH，跳过 {}", title);
                 return false;
             }
-            String model = StrUtil.blankToDefault(config.getSubtitleTranslateGrokModel(), "").trim();
-            String effort = StrUtil.blankToDefault(config.getSubtitleTranslateReasoningEffort(), "").trim();
-            if ((!model.isEmpty() && !SubtitleTranslateSupport.allowedModel(model))
-                    || !SubtitleTranslateSupport.allowedEffort(effort)) {
+            String model = StrUtil.blankToDefault(config.getSubtitleTranslateOrcaModel(), "").trim();
+            String effort = StrUtil.blankToDefault(config.getSubtitleTranslateOrcaEffort(), "").trim();
+            if (!SubtitleTranslateSupport.allowedAgent(StrUtil.blankToDefault(config.getSubtitleTranslateOrcaAgent(), "grok"))
+                    || (!model.isEmpty() && !SubtitleTranslateSupport.allowedModel(model))
+                    || !SubtitleTranslateSupport.allowedEffort(effort) || (!effort.isEmpty() && model.isEmpty())) {
                 log.info("未配置字幕翻译模型，跳过 {}", title);
                 return false;
             }
@@ -258,12 +259,14 @@ public class SubtitleTranslateService {
     private List<Cue> translateCues(String title, Map<String, String> glossary, List<Cue> cues) {
         List<Cue> translated = new ArrayList<>();
         List<List<Cue>> groups = SubtitleTranslateSupport.batches(cues);
-        if (SubtitleTranslateSupport.usesSsh(ConfigUtil.CONFIG.getSubtitleTranslateBackend())) {
+        boolean sshTranslation = SubtitleTranslateSupport.usesSsh(ConfigUtil.CONFIG.getSubtitleTranslateBackend());
+        if (sshTranslation) {
             groups = cues.isEmpty() ? List.of() : List.of(List.copyOf(cues));
         }
         for (List<Cue> batch : groups) {
             Optional<ModelReply> reply = ask(title, glossary, batch);
-            if (reply.isEmpty()) {
+            // An unconfirmed Orca receipt may still own a worker; never create a duplicate automatically.
+            if (reply.isEmpty() && !sshTranslation) {
                 reply = ask(title, glossary, batch);
             }
             if (reply.isEmpty()) {
@@ -299,6 +302,9 @@ public class SubtitleTranslateService {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("orca", StrUtil.blankToDefault(config.getSubtitleTranslateOrcaBin(), "").trim());
         payload.put("worktree", config.getSubtitleTranslateOrcaWorktree().trim());
+        payload.put("agent", StrUtil.blankToDefault(config.getSubtitleTranslateOrcaAgent(), "grok").trim());
+        payload.put("model", StrUtil.blankToDefault(config.getSubtitleTranslateOrcaModel(), "").trim());
+        payload.put("effort", StrUtil.blankToDefault(config.getSubtitleTranslateOrcaEffort(), "").trim());
         payload.put("system", SubtitleTranslateSupport.systemPrompt());
         payload.put("prompt", SubtitleTranslateSupport.userPrompt(title, glossary, batch));
         String stdout = runStdin(command.get(), GsonStatic.toJson(payload));

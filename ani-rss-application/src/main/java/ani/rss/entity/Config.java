@@ -720,10 +720,19 @@ public class Config implements Serializable {
     @Schema(description = "Orca 工作区，例如 name:misc 或 path:/绝对路径")
     private String subtitleTranslateOrcaWorktree;
 
-    @Schema(description = "SSH 翻译模型")
+    @Schema(description = "Orca 翻译执行器；旧配置默认 grok")
+    private String subtitleTranslateOrcaAgent;
+
+    @Schema(description = "Orca 目录返回的完整模型编号；空值继承执行器设置")
+    private String subtitleTranslateOrcaModel;
+
+    @Schema(description = "所选 Orca 模型支持的思维强度；空值继承")
+    private String subtitleTranslateOrcaEffort;
+
+    @Schema(description = "旧版未传入任务的模型字段，保留兼容")
     private String subtitleTranslateGrokModel;
 
-    @Schema(description = "SSH 翻译思维强度")
+    @Schema(description = "旧版未传入任务的强度字段，保留兼容")
     private String subtitleTranslateReasoningEffort;
 
     @Schema(description = "bgmApi")

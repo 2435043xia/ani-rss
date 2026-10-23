@@ -160,7 +160,14 @@ class SubtitleTranslateSupportTest {
         assertTrue(runner.contains("/usr/local/bin/orca"));
         assertFalse(runner.contains("req.get(\"grok\")"));
         assertFalse(SubtitleTranslateSupport.allowedEffort("high;rm"));
-        assertFalse(SubtitleTranslateSupport.allowedEffort("max"));
+        assertTrue(SubtitleTranslateSupport.allowedEffort("max"));
+        assertTrue(SubtitleTranslateSupport.allowedEffort("ultra"));
+        assertTrue(SubtitleTranslateSupport.allowedModel("ark/gpt-6.1-sol"));
+        assertFalse(SubtitleTranslateSupport.allowedModel("bad;model"));
+        assertTrue(SubtitleTranslateSupport.allowedAgent("codex"));
+        assertFalse(SubtitleTranslateSupport.allowedAgent("codex;rm"));
+        assertTrue(runner.contains("\"--model\""));
+        assertTrue(runner.contains("\"--effort\""));
         assertTrue(SubtitleTranslateSupport.allowedEffort(""));
         assertTrue(SubtitleTranslateSupport.allowedEffort("xhigh"));
         assertTrue(SubtitleTranslateSupport.allowedOrcaBin(""));
